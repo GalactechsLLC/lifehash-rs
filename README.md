@@ -4,10 +4,10 @@ LifeHash is a method of hash visualization. This is a rust implementation of [bc
 
 ## Dependencies
 
-[clap](https://github.com/clap-rs/clap) for Command Line Parsing 
-[hex](https://github.com/KokaKiwi/rust-hex) for encoding and decoding hex
-[png](https://github.com/image-rs/image-png) for saving created image to file in png format
-[sha2](https://github.com/RustCrypto/hashes) for hashing input data
+- [clap](https://github.com/clap-rs/clap) for Command Line Parsing 
+- [hex](https://github.com/KokaKiwi/rust-hex) for encoding and decoding hex
+- [png](https://github.com/image-rs/image-png) for saving created image to file in png format
+- [sha2](https://github.com/RustCrypto/hashes) for hashing input data
 
 ## Installation
 ```bash
