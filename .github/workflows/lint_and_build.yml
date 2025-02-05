@@ -81,7 +81,11 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: cargo-tarpaulin
+      - name: Install Tarpaulin
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-tarpaulin
       - name: Generate code coverage
         uses: actions-rs/cargo@v1
         with:
