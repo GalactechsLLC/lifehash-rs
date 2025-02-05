@@ -6,10 +6,10 @@ use crate::utils::bits::Enumerator;
 use crate::utils::{lerp, modulo};
 use crate::Version;
 use std::cmp::Ordering;
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 pub fn select_grayscale<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<'a>, Error> {
-    Ok(if entropy.next()? {
+    Ok(if entropy.next_bit()? {
         GRAYSCALE
     } else {
         ColorFunction::Reverse(Box::new(GRAYSCALE))
@@ -31,21 +31,19 @@ pub fn adjust_for_luminance(color: Color, contrast_color: Color) -> Color {
     let boost = 0.7;
     let t = lerp(0.0, threshold, boost, 0.0, offset);
     if contrast_lum > lum {
-        // darken this color
         color.darken(t).burn(t * 0.6)
     } else {
-        // lighten this color
         color.lighten(t).burn(t * 0.6)
     }
 }
 
 pub fn monochromatic<'a>(
     entropy: &mut Enumerator,
-    hue_generator: ColorFunction<'a>,
+    hue_generator: &ColorFunction<'a>,
 ) -> Result<ColorFunction<'a>, Error> {
     let hue = entropy.next_frac()?;
-    let is_tint = entropy.next()?;
-    let is_reversed = entropy.next()?;
+    let is_tint = entropy.next_bit()?;
+    let is_reversed = entropy.next_bit()?;
     let key_advance = entropy.next_frac()? * 0.3 + 0.05;
     let neutral_advance = entropy.next_frac()? * 0.3 + 0.05;
     let mut key_color = hue_generator.apply(hue);
@@ -69,8 +67,8 @@ pub fn monochromatic<'a>(
 
 pub fn monochromatic_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<'a>, Error> {
     let hue = entropy.next_frac()?;
-    let is_reversed = entropy.next()?;
-    let is_tint = entropy.next()?;
+    let is_reversed = entropy.next_bit()?;
+    let is_tint = entropy.next_bit()?;
     let contrast_color = if is_tint { WHITE } else { BLACK };
     let key_color = adjust_for_luminance(SPECTRUM_CMYK_SAFE.apply(hue), contrast_color);
     let gradient = ColorFunction::BlendVec(vec![key_color, contrast_color, key_color]);
@@ -83,13 +81,13 @@ pub fn monochromatic_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunct
 
 pub fn complementary<'a>(
     entropy: &mut Enumerator,
-    hue_generator: ColorFunction<'a>,
+    hue_generator: &ColorFunction<'a>,
 ) -> Result<ColorFunction<'a>, Error> {
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 0.5, 1.0);
     let lighter_advance = entropy.next_frac()? * 0.3;
     let darker_advance = entropy.next_frac()? * 0.3;
-    let is_reversed = entropy.next()?;
+    let is_reversed = entropy.next_bit()?;
     let color1 = hue_generator.apply(spectrum1);
     let color2 = hue_generator.apply(spectrum2);
     let luma1 = color1.luminance();
@@ -116,9 +114,9 @@ pub fn complementary<'a>(
 pub fn complementary_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<'a>, Error> {
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 0.5, 1.0);
-    let is_tint = entropy.next()?;
-    let is_reversed = entropy.next()?;
-    let neutral_color_bias = entropy.next()?;
+    let is_tint = entropy.next_bit()?;
+    let is_reversed = entropy.next_bit()?;
+    let neutral_color_bias = entropy.next_bit()?;
     let neutral_color = if is_tint { WHITE } else { BLACK };
     let color1 = SPECTRUM_CMYK_SAFE.apply(spectrum1);
     let color2 = SPECTRUM_CMYK_SAFE.apply(spectrum2);
@@ -139,18 +137,19 @@ pub fn complementary_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunct
 
 pub fn triadic<'a>(
     entropy: &mut Enumerator,
-    hue_generator: ColorFunction<'a>,
+    hue_generator: &ColorFunction<'a>,
 ) -> Result<ColorFunction<'a>, Error> {
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 1.0 / 3.0, 1.0);
     let spectrum3 = modulo(spectrum1 + 2.0 / 3.0, 1.0);
     let lighter_advance = entropy.next_frac()? * 0.3;
     let darker_advance = entropy.next_frac()? * 0.3;
-    let is_reversed = entropy.next()?;
-    let color1 = hue_generator.apply(spectrum1);
-    let color2 = hue_generator.apply(spectrum2);
-    let color3 = hue_generator.apply(spectrum3);
-    let mut colors = [color1, color2, color3];
+    let is_reversed = entropy.next_bit()?;
+    let mut colors = [
+        hue_generator.apply(spectrum1),
+        hue_generator.apply(spectrum2),
+        hue_generator.apply(spectrum3),
+    ];
     colors.sort_by(|a, b| {
         if a.luminance() < b.luminance() {
             Ordering::Less
@@ -178,34 +177,17 @@ pub fn triadic_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<'a
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 1.0 / 3.0, 1.0);
     let spectrum3 = modulo(spectrum1 + 2.0 / 3.0, 1.0);
-    let is_tint = entropy.next()?;
-    let neutral_insert_index = entropy.next_u8()? % 2 + 1;
-    let is_reversed = entropy.next()?;
+    let is_tint = entropy.next_bit()?;
+    let neutral_insert_index = entropy.next_u8()?;
+    let is_reversed = entropy.next_bit()?;
     let neutral_color = if is_tint { WHITE } else { BLACK };
     let mut colors = vec![
         SPECTRUM_CMYK_SAFE.apply(spectrum1),
         SPECTRUM_CMYK_SAFE.apply(spectrum2),
         SPECTRUM_CMYK_SAFE.apply(spectrum3),
     ];
-    match neutral_insert_index {
-        1 => {
-            colors[0] = adjust_for_luminance(colors[0], neutral_color);
-            colors[1] = adjust_for_luminance(colors[1], neutral_color);
-            colors[2] = adjust_for_luminance(colors[2], colors[1]);
-        }
-        2 => {
-            colors[1] = adjust_for_luminance(colors[1], neutral_color);
-            colors[2] = adjust_for_luminance(colors[2], neutral_color);
-            colors[0] = adjust_for_luminance(colors[0], colors[1]);
-        }
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Invalid Neutral Insert Index",
-            ))
-        }
-    }
-    colors.insert(neutral_insert_index, neutral_color);
+    adjust_colors(neutral_insert_index, &mut colors, neutral_color);
+    colors.insert(neutral_insert_index % 2 + 1, neutral_color);
     let gradient = ColorFunction::BlendVec(colors);
     Ok(if is_reversed {
         ColorFunction::Reverse(Box::from(gradient))
@@ -216,14 +198,14 @@ pub fn triadic_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<'a
 
 pub fn analogous<'a>(
     entropy: &mut Enumerator,
-    hue_generator: ColorFunction<'a>,
+    hue_generator: &ColorFunction<'a>,
 ) -> Result<ColorFunction<'a>, Error> {
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 1.0 / 12.0, 1.0);
     let spectrum3 = modulo(spectrum1 + 2.0 / 12.0, 1.0);
     let spectrum4 = modulo(spectrum1 + 3.0 / 12.0, 1.0);
     let advance = entropy.next_frac()? * 0.5 + 0.2;
-    let is_reversed = entropy.next()?;
+    let is_reversed = entropy.next_bit()?;
     let color1 = hue_generator.apply(spectrum1);
     let color2 = hue_generator.apply(spectrum2);
     let color3 = hue_generator.apply(spectrum3);
@@ -264,40 +246,39 @@ pub fn analogous_fiducial<'a>(entropy: &mut Enumerator) -> Result<ColorFunction<
     let spectrum1 = entropy.next_frac()?;
     let spectrum2 = modulo(spectrum1 + 1.0 / 10.0, 1.0);
     let spectrum3 = modulo(spectrum1 + 2.0 / 10.0, 1.0);
-    let is_tint = entropy.next()?;
-    let neutral_insert_index = entropy.next_u8()? % 2 + 1;
-    let is_reversed = entropy.next()?;
+    let is_tint = entropy.next_bit()?;
+    let neutral_insert_index = entropy.next_u8()?;
+    let is_reversed = entropy.next_bit()?;
     let neutral_color = if is_tint { WHITE } else { BLACK };
     let mut colors = vec![
         SPECTRUM_CMYK_SAFE.apply(spectrum1),
         SPECTRUM_CMYK_SAFE.apply(spectrum2),
         SPECTRUM_CMYK_SAFE.apply(spectrum3),
     ];
-    match neutral_insert_index {
-        1 => {
-            colors[0] = adjust_for_luminance(colors[0], neutral_color);
-            colors[1] = adjust_for_luminance(colors[1], neutral_color);
-            colors[2] = adjust_for_luminance(colors[2], colors[1]);
-        }
-        2 => {
-            colors[1] = adjust_for_luminance(colors[1], neutral_color);
-            colors[2] = adjust_for_luminance(colors[2], neutral_color);
-            colors[0] = adjust_for_luminance(colors[0], colors[1]);
-        }
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "Invalid Neutral Insert Index",
-            ))
-        }
-    }
-    colors.insert(neutral_insert_index, neutral_color);
+    adjust_colors(neutral_insert_index, &mut colors, neutral_color);
+    colors.insert(neutral_insert_index % 2 + 1, neutral_color);
     let gradient = ColorFunction::BlendVec(colors);
     Ok(if is_reversed {
         ColorFunction::Reverse(Box::new(gradient))
     } else {
         gradient
     })
+}
+
+fn adjust_colors(index: usize, colors: &mut [Color], neutral_color: Color) {
+    match index % 2 {
+        0 => {
+            colors[0] = adjust_for_luminance(colors[0], neutral_color);
+            colors[1] = adjust_for_luminance(colors[1], neutral_color);
+            colors[2] = adjust_for_luminance(colors[2], colors[1]);
+        }
+        1 => {
+            colors[1] = adjust_for_luminance(colors[1], neutral_color);
+            colors[2] = adjust_for_luminance(colors[2], neutral_color);
+            colors[0] = adjust_for_luminance(colors[0], colors[1]);
+        }
+        _ => unreachable!(),
+    }
 }
 
 pub fn select_gradient<'a>(
@@ -310,28 +291,28 @@ pub fn select_gradient<'a>(
     let value = entropy.next_u2()?;
     match value {
         0 => match version {
-            Version::Version1 => monochromatic(entropy, ColorFunction::MakeHue),
-            Version::Version2 | Version::Detailed => monochromatic(entropy, SPECTRUM_CMYK_SAFE),
+            Version::Version1 => monochromatic(entropy, &ColorFunction::MakeHue),
+            Version::Version2 | Version::Detailed => monochromatic(entropy, &SPECTRUM_CMYK_SAFE),
             Version::Fiducial => monochromatic_fiducial(entropy),
-            Version::GrayscaleFiducial => Ok(GRAYSCALE),
+            Version::GrayscaleFiducial => unreachable!(),
         },
         1 => match version {
-            Version::Version1 => complementary(entropy, SPECTRUM),
-            Version::Version2 | Version::Detailed => complementary(entropy, SPECTRUM_CMYK_SAFE),
+            Version::Version1 => complementary(entropy, &SPECTRUM),
+            Version::Version2 | Version::Detailed => complementary(entropy, &SPECTRUM_CMYK_SAFE),
             Version::Fiducial => complementary_fiducial(entropy),
-            Version::GrayscaleFiducial => Ok(GRAYSCALE),
+            Version::GrayscaleFiducial => unreachable!(),
         },
         2 => match version {
-            Version::Version1 => triadic(entropy, SPECTRUM),
-            Version::Version2 | Version::Detailed => triadic(entropy, SPECTRUM_CMYK_SAFE),
+            Version::Version1 => triadic(entropy, &SPECTRUM),
+            Version::Version2 | Version::Detailed => triadic(entropy, &SPECTRUM_CMYK_SAFE),
             Version::Fiducial => triadic_fiducial(entropy),
-            Version::GrayscaleFiducial => Ok(GRAYSCALE),
+            Version::GrayscaleFiducial => unreachable!(),
         },
         3 => match version {
-            Version::Version1 => analogous(entropy, SPECTRUM),
-            Version::Version2 | Version::Detailed => analogous(entropy, SPECTRUM_CMYK_SAFE),
+            Version::Version1 => analogous(entropy, &SPECTRUM),
+            Version::Version2 | Version::Detailed => analogous(entropy, &SPECTRUM_CMYK_SAFE),
             Version::Fiducial => analogous_fiducial(entropy),
-            Version::GrayscaleFiducial => Ok(GRAYSCALE),
+            Version::GrayscaleFiducial => unreachable!(),
         },
         _ => Ok(GRAYSCALE),
     }

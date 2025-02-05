@@ -14,6 +14,8 @@ impl FracGrid {
         }
     }
 }
+
+#[cfg(not(tarpaulin_include))]
 impl ColorValues<f64> for FracGridImpl {
     fn color_for_value(value: &f64) -> Color {
         BLACK.lerp_to(&WHITE, *value)

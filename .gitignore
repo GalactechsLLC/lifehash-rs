@@ -1,3 +1,6 @@
 .idea/
 target/
 *.png
+**/cobertura.xml
+**/tarpaulin-report.html
+

@@ -1,0 +1,79 @@
+---
+name: On Push, Lint, Build and Test
+on:
+  push:
+    branches-ignore: [ignoreme]
+defaults:
+  run:
+    shell: bash
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.84-bullseye
+    steps:
+      - name: Checkout Main Code
+        uses: actions/checkout@v4
+      - name: Cache Cargo Registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Cargo Format
+        run: rustup component add rustfmt
+      - name: Run Cargo Format
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.84-bullseye
+    steps:
+      - name: Checkout Main Code
+        uses: actions/checkout@v4
+      - name: Cache Cargo Registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Cargo Clippy
+        run: rustup component add clippy
+      - name: Run Cargo Clippy
+        run: cargo clippy -- -Dwarnings
+
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.84-bullseye
+    steps:
+      - name: Checkout Main Code
+        uses: actions/checkout@v4
+      - name: Cache Cargo Registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install Cargo Tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Generate code coverage
+        run: |
+          cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

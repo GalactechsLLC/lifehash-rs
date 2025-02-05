@@ -16,7 +16,9 @@ impl ColorFunction<'_> {
             ColorFunction::BlendVec(colors) => blend_vals(t, colors.as_slice()),
             ColorFunction::BlendRef(colors) => blend_vals(t, colors),
             ColorFunction::Reverse(func) => func.apply(1.0 - t),
-            ColorFunction::MakeHue => make_hue(t).unwrap(),
+            ColorFunction::MakeHue => {
+                make_hue(t).expect("Expected known HSB color to convert to RGB")
+            }
         }
     }
 }
