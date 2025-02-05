@@ -67,7 +67,7 @@ pub const FIDUCIAL_TRANSFORMS: [Transform; 1] = [Transform {
 pub type ColorGrid = Grid<Color, ColorGridImpl>;
 pub struct ColorGridImpl;
 impl ColorGrid {
-    pub fn create(frac_grid: FracGrid, gradient: ColorFunction, pattern: Pattern) -> Self {
+    pub fn create(frac_grid: &FracGrid, gradient: &ColorFunction, pattern: Pattern) -> Self {
         let mut color_grid = ColorGrid::new(target_size(frac_grid.dimensions, pattern));
         let transforms = match pattern {
             Pattern::Snowflake => SNOWFLAKE_TRANSFORMS.as_slice(),
@@ -84,7 +84,7 @@ impl ColorGrid {
     pub fn transform_point(&self, point: Point, transform: Transform) -> Point {
         let mut result = point;
         if transform.transpose {
-            (result.x, result.y) = (result.y, result.x)
+            (result.x, result.y) = (result.y, result.x);
         }
         if transform.reflect_x {
             result.x = self.max_x - result.x;

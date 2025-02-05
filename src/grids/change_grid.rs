@@ -11,6 +11,8 @@ impl ChangeGrid {
         }
     }
 }
+
+#[cfg(not(tarpaulin_include))]
 impl ColorValues<bool> for ChangeGridImpl {
     fn color_for_value(value: &bool) -> Color {
         if *value {

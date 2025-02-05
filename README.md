@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/GalactechsLLC/lifehash-rs/graph/badge.svg?token=JJK4MAWNBY)](https://codecov.io/gh/GalactechsLLC/lifehash-rs)
+
 # lifehash - The Rust implementation
 
 LifeHash is a method of hash visualization. This is a rust implementation of [bc-lifehash](https://github.com/BlockchainCommons/bc-lifehash), see there for an overview of LifeHash.

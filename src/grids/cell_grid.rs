@@ -2,7 +2,7 @@ use crate::colors::{rgb::Color, BLACK, WHITE};
 use crate::grids::change_grid::ChangeGrid;
 use crate::grids::Grid;
 use crate::utils::bits::{Aggregator, Enumerator};
-use crate::{ColorValues, Point, ZERO};
+use crate::{ColorValues, Point};
 
 pub type Cellgrid = Grid<bool, CellGridImpl>;
 pub struct CellGridImpl;
@@ -17,7 +17,7 @@ impl Cellgrid {
     pub fn set_data(&mut self, data: &[u8]) {
         let mut e = Enumerator::new(data);
         let mut i = 0;
-        while let Ok(b) = e.next() {
+        while let Ok(b) = e.next_bit() {
             self.storage[i] = b;
             i += 1;
         }
@@ -31,8 +31,8 @@ impl Cellgrid {
     }
     pub fn count_neighbors(&self, point: Point) -> usize {
         let mut total = 0;
-        for (o, p) in self.get_neighborhood(point) {
-            if o == ZERO {
+        for (is_self, p) in self.get_neighborhood(point) {
+            if is_self {
                 continue;
             }
             if *self.get_value(p) {
@@ -66,6 +66,8 @@ impl Cellgrid {
         }
     }
 }
+
+#[cfg(not(tarpaulin_include))]
 impl ColorValues<bool> for CellGridImpl {
     fn color_for_value(value: &bool) -> Color {
         if *value {

@@ -3,24 +3,6 @@ use crate::{Dimensions, Pattern, Version};
 use std::io::Error;
 
 pub mod bits;
-
-pub const fn min(a: f64, b: f64) -> f64 {
-    if a < b {
-        a
-    } else {
-        b
-    }
-}
-pub const fn max(a: f64, b: f64) -> f64 {
-    if a > b {
-        a
-    } else {
-        b
-    }
-}
-pub const fn clamped(d: f64) -> f64 {
-    max(min(d, 1.0), 0.0)
-}
 pub const fn lerp_to(to_a: f64, to_b: f64, t: f64) -> f64 {
     t * (to_b - to_a) + to_a
 }
@@ -37,7 +19,7 @@ pub fn select_pattern(entropy: &mut Enumerator, version: Version) -> Result<Patt
     Ok(match version {
         Version::Fiducial | Version::GrayscaleFiducial => Pattern::Fiducial,
         _ => {
-            if entropy.next()? {
+            if entropy.next_bit()? {
                 Pattern::Snowflake
             } else {
                 Pattern::Pinwheel

@@ -1,5 +1,5 @@
 use crate::colors::rgb;
-use crate::utils::{clamped, modulo};
+use crate::utils::modulo;
 use std::io::{Error, ErrorKind};
 
 pub struct Color {
@@ -16,56 +16,53 @@ impl Color {
         }
     }
     pub fn rgb(&self) -> Result<rgb::Color, Error> {
-        let v = clamped(self.brightness);
-        let s = clamped(self.saturation);
+        let brightness = self.brightness.clamp(0.0, 1.0);
+        let saturation = self.saturation.clamp(0.0, 1.0);
         let red;
         let green;
         let blue;
-        if s <= 0.0 {
-            red = v;
-            green = v;
-            blue = v;
+        if saturation <= 0.0 {
+            red = brightness;
+            green = brightness;
+            blue = brightness;
         } else {
-            let mut h = modulo(self.hue, 1.0);
-            if h < 0.0 {
-                h += 1.0;
+            let mut hue = modulo(self.hue, 1.0);
+            if hue < 0.0 {
+                hue += 1.0;
             }
-            h *= 6.0;
-            let i = h.floor() as i32;
-            let f = h - i as f64;
-            let p = v * (1.0 - s);
-            let q = v * (1.0 - s * f);
-            let t = v * (1.0 - s * (1.0 - f));
-            match i {
+            hue *= 6.0;
+            let hue_floor = hue.floor() as i32;
+            let hue_remainder = hue - f64::from(hue_floor);
+            match hue_floor {
                 0 => {
-                    red = v;
-                    green = t;
-                    blue = p;
+                    red = brightness;
+                    green = brightness * (1.0 - saturation * (1.0 - hue_remainder));
+                    blue = brightness * (1.0 - saturation);
                 }
                 1 => {
-                    red = q;
-                    green = v;
-                    blue = p;
+                    red = brightness * (1.0 - saturation * hue_remainder);
+                    green = brightness;
+                    blue = brightness * (1.0 - saturation);
                 }
                 2 => {
-                    red = p;
-                    green = v;
-                    blue = t;
+                    red = brightness * (1.0 - saturation);
+                    green = brightness;
+                    blue = brightness * (1.0 - saturation * (1.0 - hue_remainder));
                 }
                 3 => {
-                    red = p;
-                    green = q;
-                    blue = v;
+                    red = brightness * (1.0 - saturation);
+                    green = brightness * (1.0 - saturation * hue_remainder);
+                    blue = brightness;
                 }
                 4 => {
-                    red = t;
-                    green = p;
-                    blue = v;
+                    red = brightness * (1.0 - saturation * (1.0 - hue_remainder));
+                    green = brightness * (1.0 - saturation);
+                    blue = brightness;
                 }
                 5 => {
-                    red = v;
-                    green = p;
-                    blue = q;
+                    red = brightness;
+                    green = brightness * (1.0 - saturation);
+                    blue = brightness * (1.0 - saturation * hue_remainder);
                 }
                 _ => {
                     return Err(Error::new(ErrorKind::InvalidData, "Invalid HSB color."));

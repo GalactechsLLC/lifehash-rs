@@ -1,15 +1,13 @@
 use std::io::{Error, ErrorKind};
 
+#[derive(Default)]
 pub struct Aggregator {
     pub data: Vec<u8>,
     bit_mask: u8,
 }
 impl Aggregator {
     pub fn new() -> Aggregator {
-        Self {
-            data: Vec::new(),
-            bit_mask: 0,
-        }
+        Self::default()
     }
     pub fn append(&mut self, bit: bool) {
         if self.bit_mask == 0 {
@@ -40,7 +38,7 @@ impl<'a> Enumerator<'a> {
     pub fn has_next(&self) -> bool {
         self.mask != 0 || self.index != self.data.len() - 1
     }
-    pub fn next(&mut self) -> Result<bool, Error> {
+    pub fn next_bit(&mut self) -> Result<bool, Error> {
         if !self.has_next() {
             return Err(Error::new(
                 ErrorKind::UnexpectedEof,
@@ -58,7 +56,7 @@ impl<'a> Enumerator<'a> {
     pub fn next_bits(&mut self, mut bit_mask: usize, count: usize) -> Result<usize, Error> {
         let mut value = 0;
         for _ in 0..count {
-            if self.next()? {
+            if self.next_bit()? {
                 value |= bit_mask;
             }
             bit_mask >>= 1;

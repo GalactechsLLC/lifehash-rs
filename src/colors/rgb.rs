@@ -1,11 +1,17 @@
 use crate::colors::{BLACK, WHITE};
-use crate::utils::clamped;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Color {
     pub r: f64,
     pub g: f64,
     pub b: f64,
+}
+impl Eq for Color {}
+
+impl PartialEq for Color {
+    fn eq(&self, other: &Self) -> bool {
+        self.r == other.r && self.g == other.g && self.b == other.b
+    }
 }
 
 impl Color {
@@ -32,10 +38,10 @@ impl Color {
         )
     }
     pub fn lerp_to(&self, other: &Color, t: f64) -> Color {
-        let f = clamped(t);
-        let red = clamped(self.r * (1.0 - f) + other.r * f);
-        let green = clamped(self.g * (1.0 - f) + other.g * f);
-        let blue = clamped(self.b * (1.0 - f) + other.b * f);
+        let f = t.clamp(0.0, 1.0);
+        let red = (self.r * (1.0 - f) + other.r * f).clamp(0.0, 1.0);
+        let green = (self.g * (1.0 - f) + other.g * f).clamp(0.0, 1.0);
+        let blue = (self.b * (1.0 - f) + other.b * f).clamp(0.0, 1.0);
         Color::new(red, green, blue)
     }
     pub fn lighten(&self, t: f64) -> Color {
